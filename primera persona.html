@@ -1,0 +1,204 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>OFFROAD: Expedición Extrema — Primera persona</title>
+<style>
+:root{--lime:#c9f47a;--panel:rgba(12,22,18,.88);--line:rgba(255,255,255,.18)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#18251d;color:#f6f5e9;font-family:Arial,Helvetica,sans-serif;touch-action:none}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 12px;box-shadow:0 7px 24px #0003;backdrop-filter:blur(7px)}
+#brand{position:absolute;top:13px;left:14px;font-size:13px;font-weight:1000;letter-spacing:.12em}
+#brand span{color:var(--lime)}
+#stats{position:absolute;top:13px;right:14px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.stat{min-width:72px;text-align:center}
+.small{font-size:9px;color:#bec9be;letter-spacing:.12em;font-weight:bold}
+.value{font-size:14px;font-weight:900;margin-top:3px}
+.bar{height:5px;background:#ffffff25;border-radius:8px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:100%;background:var(--lime);border-radius:8px;transition:width .15s}
+#stage{position:absolute;top:66px;left:50%;transform:translateX(-50%);text-align:center;min-width:180px}
+#mission{position:absolute;left:14px;bottom:14px;max-width:260px;font-size:11px;line-height:1.5;color:#f1f1e8}
+#toast{position:fixed;z-index:3;top:22%;left:50%;transform:translate(-50%,-10px);opacity:0;padding:11px 16px;border-radius:10px;background:#102018ed;border:1px solid #c9f47a88;color:var(--lime);font-size:12px;font-weight:900;letter-spacing:.1em;transition:.2s;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#message{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:linear-gradient(115deg,#09120feF,#101a12dc)}
+#card{width:min(540px,calc(100% - 28px));max-height:94vh;overflow:auto;padding:27px;border:1px solid var(--line);border-radius:20px;background:rgba(16,29,22,.97);box-shadow:0 24px 90px #0008;text-align:center}
+.kicker{font-size:10px;letter-spacing:.25em;font-weight:900;color:var(--lime)}
+h1{font-size:clamp(35px,8vw,62px);line-height:.9;letter-spacing:-.06em;margin:12px 0}
+h1 span{color:var(--lime)}
+#desc{font-size:13px;line-height:1.55;color:#c8d1c7;margin:14px auto 18px;max-width:440px}
+.tags{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:15px 0 20px}
+.tag{font-size:10px;padding:7px 9px;border:1px solid #ffffff25;border-radius:7px;color:#dce5d9}
+.modes{display:flex;gap:8px;margin:0 0 15px}
+.mode{flex:1;border:1px solid #ffffff30;background:#26382b;color:#eaf0e6;padding:10px 5px;border-radius:9px;font-weight:bold;cursor:pointer}
+.mode.active{background:var(--lime);color:#182219;border-color:var(--lime)}
+button{font:inherit;cursor:pointer}
+#start{width:100%;border:0;border-radius:10px;padding:14px;background:var(--lime);color:#182219;font-weight:1000;letter-spacing:.13em}
+#controls{font-size:10px;line-height:1.8;color:#9eaca0;margin-top:14px}
+#mobile{display:none;position:fixed;z-index:4;left:0;right:0;bottom:12px;justify-content:space-between;padding:0 14px;pointer-events:none}
+.touchgroup{display:flex;gap:7px}
+.touch{pointer-events:auto;touch-action:none;user-select:none;width:57px;height:57px;border-radius:14px;background:#112019d9;color:white;border:1px solid #ffffff55;font-weight:900;font-size:19px}
+.touch.gas{width:70px;background:#c9f47a;color:#172219;font-size:11px}
+#pause{display:none;position:fixed;z-index:4;inset:0;place-items:center;background:#07100b88;font-size:25px;font-weight:1000;letter-spacing:.2em;text-shadow:0 3px 10px #000}
+#pause.show{display:grid}
+@media(max-width:760px){
+#stats{top:53px;left:8px;right:8px;justify-content:center;gap:4px}
+.stat{min-width:57px;padding:7px 6px}
+.value{font-size:11px}
+#brand{top:10px;left:9px}
+#stage{top:10px;left:auto;right:9px;transform:none;min-width:105px;padding:7px}
+#mission{bottom:83px;left:9px;font-size:10px}
+#mobile{display:flex}
+#card{padding:22px 17px}
+.modes{gap:5px}
+.mode{font-size:11px}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div id="brand" class="panel">4×4 <span>EXPEDICIÓN</span> · POV</div>
+ <div id="stage" class="panel">
+  <div class="small">ZONA ACTUAL</div>
+  <div class="value" id="zone">BOSQUE</div>
+  <div class="bar"><i id="stagebar"></i></div>
+ </div>
+ <div id="stats">
+  <div class="panel stat"><div class="small">VELOCIDAD</div><div class="value"><span id="speedText">0</span> km/h</div></div>
+  <div class="panel stat"><div class="small">COMBUSTIBLE</div><div class="value" id="fuelText">100%</div><div class="bar"><i id="fuelbar"></i></div></div>
+  <div class="panel stat"><div class="small">NITRO</div><div class="value" id="nitroText">0%</div><div class="bar"><i id="nitrobar"></i></div></div>
+  <div class="panel stat"><div class="small">DAÑOS</div><div class="value" id="damageText">0%</div><div class="bar"><i id="damagebar"></i></div></div>
+  <div class="panel stat"><div class="small">MONEDAS</div><div class="value" id="coins">0</div></div>
+ </div>
+ <div id="mission" class="panel">OBJETIVO: completá 3.600 m · Juntá monedas y cuidá la 4×4.</div>
+</div>
+<div id="toast"></div><div id="pause">PAUSA</div>
+<div id="mobile">
+ <div class="touchgroup"><button class="touch" data-key="left">◀</button><button class="touch" data-key="right">▶</button></div>
+ <div class="touchgroup"><button class="touch" data-key="brake">▼</button><button class="touch gas" data-key="gas">ACELERAR</button></div>
+</div>
+<div id="message"><div id="card">
+ <div class="kicker">CAMPAÑA 4×4 · VISTA DESDE EL CONDUCTOR</div>
+ <h1>OFFROAD<br><span>EXTREMA POV</span></h1>
+ <p id="desc">Ahora manejás desde adentro de la camioneta. Mirá el camino a través del parabrisas, calculá las distancias y esquivá los obstáculos que se acercan. Cruzá bosque, desierto, montaña y pantano.</p>
+ <div class="tags"><span class="tag">👀 PRIMERA PERSONA</span><span class="tag">🌲 4 REGIONES</span><span class="tag">⛽ COMBUSTIBLE</span><span class="tag">⚡ NITRO</span><span class="tag">🪨 OBSTÁCULOS 3D</span></div>
+ <div class="small" style="margin-bottom:8px">ELEGÍ LA DIFICULTAD</div>
+ <div class="modes"><button class="mode active" data-mode="easy">FÁCIL</button><button class="mode" data-mode="normal">NORMAL</button><button class="mode" data-mode="hard">EXTREMA</button></div>
+ <button id="start">ARRANCAR EXPEDICIÓN →</button>
+ <div id="controls">W / ↑ acelerar · S / ↓ frenar · A / ← y D / → girar<br>SHIFT nitro · ESPACIO freno de mano · P pausa · R reiniciar</div>
+</div></div>
+<script>
+(()=>{
+'use strict';
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+let W=innerWidth,H=innerHeight,DPR=1;
+function resize(){DPR=Math.min(devicePixelRatio||1,1.6);W=innerWidth;H=innerHeight;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
+const keys={},touch={};
+let mode='easy',running=false,paused=false,last=0,elapsed=0,distance=0,coins=0,fuel=100,nitro=0,damage=0,speed=0,spawn=1,itemSpawn=2,toastTimer=0,shake=0,playerLane=0,steerVisual=0,loopToken=0,offroadTime=0;
+let objects=[];
+const bestKey='offroadPOVBest';let best=Number(localStorage.getItem(bestKey)||0);
+const settings={easy:{traffic:.78,damage:7,fuel:.45,max:145},normal:{traffic:1,damage:11,fuel:.65,max:160},hard:{traffic:1.27,damage:16,fuel:.82,max:175}};
+const zones=[
+ {name:'BOSQUE',start:0,end:900,grass:'#527746',road:'#92734d',edge:'#d3b985',tree:'#315b36',sky1:'#86a99b',sky2:'#d1d5b4',hill:'#637d68'},
+ {name:'DESIERTO',start:900,end:1800,grass:'#b99a59',road:'#b18b5a',edge:'#e1c48a',tree:'#927443',sky1:'#bdc3a3',sky2:'#e5d2a2',hill:'#b6925d'},
+ {name:'MONTAÑA',start:1800,end:2700,grass:'#707b70',road:'#77766c',edge:'#c9c5b2',tree:'#46564c',sky1:'#91a9b9',sky2:'#d0d1c3',hill:'#75848a'},
+ {name:'PANTANO',start:2700,end:3600,grass:'#536b51',road:'#6a6549',edge:'#a8a17b',tree:'#344d3c',sky1:'#819e99',sky2:'#c0c5a7',hill:'#526c61'}
+];
+const zoneAt=d=>zones[Math.min(3,Math.floor(d/900))];
+const roadCurve=d=>Math.sin((distance+d)*.0031)*.20+Math.sin((distance+d)*.008)*.055;
+const horizon=()=>H*.285,roadBottom=()=>H*.84;
+function perspective(d){const s=1/(1+Math.max(0,d)/43);return{scale:s,y:horizon()+(roadBottom()-horizon())*s,half:W*.48*s,center:W*.5+roadCurve(d)*W*.62*s-playerLane*W*.48*s}}
+function showToast(t){$('toast').textContent=t;$('toast').classList.add('show');toastTimer=1.7}
+function reset(){distance=0;coins=0;fuel=100;nitro=0;damage=0;speed=0;elapsed=0;spawn=1;itemSpawn=2;objects=[];playerLane=0;steerVisual=0;shake=0;offroadTime=0;updateHud()}
+function start(){reset();running=true;paused=false;loopToken++;$('message').style.display='none';$('pause').classList.remove('show');last=performance.now();showToast('¡MOTOR ENCENDIDO!');const token=loopToken;requestAnimationFrame(t=>loop(t,token))}
+$('start').onclick=start;
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b))});
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k===' '?'space':k]=true;if(e.repeat)return;if(k==='p'&&running){paused=!paused;$('pause').classList.toggle('show',paused);last=performance.now();if(!paused){const token=loopToken;requestAnimationFrame(t=>loop(t,token))}}if(k==='r'&&running)start()});
+addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys[k===' '?'space':k]=false});
+addEventListener('blur',()=>{Object.keys(keys).forEach(k=>keys[k]=false);Object.keys(touch).forEach(k=>touch[k]=false)});
+document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;const on=e=>{e.preventDefault();touch[k]=true};const off=e=>{e.preventDefault();touch[k]=false};b.addEventListener('pointerdown',on);['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,off))});
+function input(name,...aliases){return !!(keys[name]||aliases.some(k=>keys[k])||touch[name])}
+function makeObject(type,lane,z,extra={}){objects.push({type,lane,z,spin:Math.random()*6,hit:false,...extra})}
+function spawnObstacle(){const zone=zoneAt(distance),lane=(Math.random()*1.64-.82),r=Math.random();let type;if(zone.name==='BOSQUE')type=r<.55?'rock':r<.82?'log':'mud';else if(zone.name==='DESIERTO')type=r<.47?'rock':r<.76?'cactus':'sand';else if(zone.name==='MONTAÑA')type=r<.56?'boulder':r<.82?'rock':'ramp';else type=r<.42?'mud':r<.77?'water':'rock';makeObject(type,lane,105+Math.random()*65,{size:type==='boulder'?1.35:1})}
+function spawnItem(){const r=Math.random(),type=r<.48?'coin':r<.66?'fuel':r<.84?'repair':'nitro';makeObject(type,Math.random()*1.55-.775,115+Math.random()*45,{size:1})}
+function collect(o){if(o.hit)return;o.hit=true;if(o.type==='coin'){coins++;showToast('+1 MONEDA');return}if(o.type==='fuel'){fuel=Math.min(100,fuel+27);showToast('BIDÓN +27%');return}if(o.type==='repair'){damage=Math.max(0,damage-28);showToast('CAMIONETA REPARADA');return}if(o.type==='nitro'){nitro=Math.min(100,nitro+38);showToast('NITRO +38%');return}if(o.type==='ramp'){speed=Math.min(settings[mode].max,speed+35);shake=2;showToast('¡SALTO!');return}if(o.type==='sand'){speed*=.78;showToast('ARENA SUELTA');return}if(o.type==='mud'){speed*=.73;showToast('¡BARRO PROFUNDO!');shake=4;return}if(o.type==='water'){speed*=.82;showToast('¡CRUCE DE AGUA!');shake=3;return}damage=Math.min(100,damage+settings[mode].damage*(o.type==='boulder'?1.35:1));speed*=.48;shake=9;showToast(o.type==='cactus'?'¡CUIDADO CON EL CACTUS!':'¡GOLPE!')}
+function update(dt){
+ const cfg=settings[mode],gas=input('gas','w','arrowup'),brake=input('brake','s','arrowdown'),left=input('left','a','arrowleft'),right=input('right','d','arrowright'),hand=input('space'),boost=!!(keys.shift||keys.shiftleft||keys.shiftright);
+ const steering=(right?1:0)-(left?1:0);steerVisual=lerp(steerVisual,steering,Math.min(1,dt*7));
+ const inMud=objects.some(o=>!o.hit&&o.type==='mud'&&o.z<20&&o.z>-6&&Math.abs(o.lane-playerLane)<.6),inWater=objects.some(o=>!o.hit&&o.type==='water'&&o.z<18&&o.z>-5&&Math.abs(o.lane-playerLane)<.68);
+ const grip=inMud?.38:inWater?.65:1;
+ if(gas&&fuel>0&&damage<100)speed+=cfg.max*.82*dt*grip;
+ if(boost&&nitro>0&&fuel>0){speed+=cfg.max*.85*dt;nitro=Math.max(0,nitro-34*dt)}
+ if(brake)speed-=cfg.max*2.25*dt;else speed-=18*dt;
+ if(hand)speed-=cfg.max*.75*dt;
+ speed=clamp(speed,0,cfg.max*(1-damage/150));
+ playerLane+=steering*(.95+speed/cfg.max*.78)*dt*grip;
+ if(inMud&&Math.abs(steering)>.05)playerLane+=Math.sin(elapsed*9)*.20*dt;
+ playerLane=clamp(playerLane,-1.48,1.48);
+ const drift=Math.abs(playerLane);
+ if(drift>1.12){offroadTime+=dt;speed*=Math.pow(.30,dt);if(offroadTime>1.2){damage=Math.min(100,damage+dt*cfg.damage*.33)}}else offroadTime=Math.max(0,offroadTime-dt*2);
+ const advance=speed*dt*.72;distance+=advance*.16;elapsed+=dt;
+ if(speed>5)fuel=Math.max(0,fuel-dt*cfg.fuel*(.32+speed/cfg.max*.85));if(fuel<=0)speed=Math.max(0,speed-110*dt);
+ spawn-=dt*(.72+distance/7000)*cfg.traffic;if(spawn<=0){spawnObstacle();spawn=Math.max(.42,1.18-distance/6000)*cfg.traffic}
+ itemSpawn-=dt;if(itemSpawn<=0){spawnItem();itemSpawn=2.5+Math.random()*1.8}
+ for(const o of objects){o.z-=advance;o.spin+=dt*2.5;if(o.hit)continue;
+  const near=o.z<8&&o.z>-2&&Math.abs(o.lane-playerLane)<(o.size||1)*.30+.10;
+  if(near)collect(o);
+ }
+ objects=objects.filter(o=>o.z>-12&&!o.hit);
+ shake=Math.max(0,shake-dt*22);if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)$('toast').classList.remove('show')}
+ if(distance>=3600){finish(true);return}if(damage>=100){finish(false,'La camioneta quedó destruida.');return}if(fuel<=0&&speed<5){finish(false,'Te quedaste sin combustible.');return}updateHud();
+}
+function updateHud(){const z=zoneAt(distance);$('zone').textContent=z.name;$('stagebar').style.width=((distance-z.start)/(z.end-z.start)*100)+'%';$('speedText').textContent=Math.round(speed);$('fuelText').textContent=Math.ceil(fuel)+'%';$('fuelbar').style.width=fuel+'%';$('fuelbar').style.background=fuel<25?'#ff755f':'var(--lime)';$('damageText').textContent=Math.floor(damage)+'%';$('damagebar').style.width=damage+'%';$('damagebar').style.background=damage>65?'#ff755f':'#e7c66b';$('nitroText').textContent=Math.floor(nitro)+'%';$('nitrobar').style.width=nitro+'%';$('coins').textContent=coins;$('mission').textContent=`OBJETIVO: 3.600 m · MONEDAS: ${coins}`+(fuel<20?' · ¡BUSCÁ COMBUSTIBLE!':'')+(damage>65?' · ¡CAMIONETA DAÑADA!':'')}
+function finish(win,reason=''){running=false;loopToken++;if(distance>best){best=Math.floor(distance);localStorage.setItem(bestKey,best)}$('message').style.display='grid';$('card').innerHTML=`<div class="kicker">RESULTADO DE LA CAMPAÑA</div><h1>${win?'¡LO':'CASI'}<br><span>${win?'LOGRASTE':'LOGRÁS!'}</span></h1><p id="desc">${win?'Atravesaste las cuatro regiones y completaste la ruta.':reason}</p><div class="tags"><span class="tag">DISTANCIA: ${Math.floor(distance)} m</span><span class="tag">MONEDAS: ${coins}</span><span class="tag">RÉCORD: ${best} m</span></div><button id="again" style="width:100%;border:0;border-radius:10px;padding:14px;background:var(--lime);color:#182219;font-weight:1000">VOLVER A JUGAR ↻</button><div id="controls">Probá otra dificultad para superar tu récord.</div>`;$('again').onclick=start}
+function sky(){const z=zoneAt(distance),g=ctx.createLinearGradient(0,0,0,H*.7);g.addColorStop(0,z.sky1);g.addColorStop(1,z.sky2);ctx.fillStyle=g;ctx.fillRect(0,0,W,H*.8);
+ ctx.fillStyle='#fff2c477';ctx.beginPath();ctx.arc(W*.78,H*.14,Math.min(W,H)*.055,0,Math.PI*2);ctx.fill();
+ for(let i=0;i<5;i++){let x=((i*257-distance*.07)%(W+180)+W+180)%(W+180)-90,y=H*(.10+(i%3)*.045);ctx.fillStyle='#ffffff32';ctx.beginPath();ctx.ellipse(x,y,43,9,0,0,Math.PI*2);ctx.fill()}
+ ctx.fillStyle=z.hill;ctx.beginPath();ctx.moveTo(0,H*.36);for(let x=0;x<=W+20;x+=20){let y=H*.35+Math.sin(x*.012+distance*.0006)*H*.035+Math.sin(x*.027)*H*.018;ctx.lineTo(x,y)}ctx.lineTo(W,H*.52);ctx.lineTo(0,H*.52);ctx.closePath();ctx.fill();
+}
+function roadPoint(d,side){const p=perspective(d);return p.center+side*p.half}
+function drawRoad(){const z=zoneAt(distance);ctx.fillStyle=z.grass;ctx.fillRect(0,H*.30,W,H*.7);
+ for(let i=0;i<24;i++){const d=((i*17+distance*.8)%190);const p=perspective(d);ctx.strokeStyle='#ffffff12';ctx.lineWidth=Math.max(.5,p.scale*2);ctx.beginPath();ctx.moveTo(p.center-p.half*1.65,p.y);ctx.lineTo(p.center-p.half*1.85,p.y+12*p.scale);ctx.moveTo(p.center+p.half*1.65,p.y);ctx.lineTo(p.center+p.half*1.85,p.y+12*p.scale);ctx.stroke()}
+ for(let d=215;d>=0;d-=5){const a=perspective(d),b=perspective(d+5);ctx.fillStyle=((Math.floor((d+roadScrollOffset())/9)%2)===0)?z.road:shade(z.road,5);ctx.beginPath();ctx.moveTo(a.center-a.half,a.y);ctx.lineTo(a.center+a.half,a.y);ctx.lineTo(b.center+b.half,b.y);ctx.lineTo(b.center-b.half,b.y);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=z.edge;ctx.lineWidth=Math.max(1,a.scale*4);ctx.beginPath();ctx.moveTo(a.center-a.half,a.y);ctx.lineTo(b.center-b.half,b.y);ctx.moveTo(a.center+a.half,a.y);ctx.lineTo(b.center+b.half,b.y);ctx.stroke();
+ }
+ for(let d=3;d<205;d+=17){const p=perspective(d),q=perspective(d+8);ctx.strokeStyle='#f6e5bbd0';ctx.lineWidth=Math.max(.6,p.scale*3);ctx.beginPath();ctx.moveTo(p.center,p.y);ctx.lineTo(q.center,q.y);ctx.stroke()}
+ for(let side of [-1,1]){ctx.strokeStyle='#463b2e55';ctx.lineWidth=2;ctx.beginPath();for(let d=2;d<65;d+=3){const p=perspective(d),x=p.center+side*p.half*.47;if(d===2)ctx.moveTo(x,p.y);else ctx.lineTo(x,p.y)}ctx.stroke()}
+}
+function shade(hex,amount){const n=parseInt(hex.slice(1),16),r=clamp((n>>16)+amount,0,255),g=clamp(((n>>8)&255)+amount,0,255),b=clamp((n&255)+amount,0,255);return `rgb(${r},${g},${b})`}
+function roadScrollOffset(){return distance*2.5}
+function projectObject(o){const p=perspective(o.z);return{x:p.center+o.lane*p.half,y:p.y,scale:p.scale,half:p.half}}
+function drawObstacle(o){const p=projectObject(o);if(p.y<H*.29||p.y>H*.86)return;const s=Math.max(.06,p.scale),x=p.x,y=p.y;ctx.save();ctx.translate(x,y);const r=Math.max(2,24*s*(o.size||1));
+ if(o.type==='coin'){ctx.rotate(o.spin);ctx.fillStyle='#ffd65b';ctx.strokeStyle='#fff2ab';ctx.lineWidth=Math.max(1,3*s);ctx.beginPath();ctx.ellipse(0,-r*.8,r*.7,r*.95,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#815116';ctx.font=`bold ${Math.max(7,12*s)}px Arial`;ctx.textAlign='center';ctx.fillText('$',0,-r*.65)}
+ else if(o.type==='fuel'||o.type==='repair'||o.type==='nitro'){const c=o.type==='fuel'?'#e04b3f':o.type==='nitro'?'#398ed6':'#e7e9df';ctx.fillStyle=c;ctx.fillRect(-r*.55,-r*1.8,r*1.1,r*1.8);ctx.fillStyle='#17221b';ctx.fillRect(-r*.25,-r*2.05,r*.5,r*.3);ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(7,12*s)}px Arial`;ctx.textAlign='center';ctx.fillText(o.type==='fuel'?'F':o.type==='nitro'?'N':'+',0,-r*.7)}
+ else if(o.type==='mud'||o.type==='water'||o.type==='sand'){const c=o.type==='mud'?'#55402d':o.type==='water'?'#438ba5':'#d0a66a';ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(0,0,r*2.2,r*.42,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=o.type==='water'?'#b4e7e9':'#94734e';ctx.lineWidth=Math.max(1,2*s);ctx.stroke();if(o.type==='water'){ctx.beginPath();ctx.ellipse(-r*.4,-r*.1,r*.8,r*.15,0,0,Math.PI*2);ctx.stroke()}}
+ else if(o.type==='ramp'){ctx.fillStyle='#9c744b';ctx.beginPath();ctx.moveTo(-r*1.7,0);ctx.lineTo(r*1.15,-r*1.1);ctx.lineTo(r*1.7,0);ctx.closePath();ctx.fill();ctx.strokeStyle='#e5c28c';ctx.stroke()}
+ else if(o.type==='log'){ctx.rotate(.15);ctx.fillStyle='#785438';ctx.fillRect(-r*1.5,-r*.4,r*3,r*.8);ctx.fillStyle='#c18b5b';ctx.beginPath();ctx.arc(-r*1.5,0,r*.4,0,Math.PI*2);ctx.fill()}
+ else if(o.type==='cactus'){ctx.fillStyle='#427a49';ctx.fillRect(-r*.25,-r*2,r*.5,r*2);ctx.fillRect(-r*.9,-r*1.25,r*.65,r*.25);ctx.fillRect(-r*.9,-r*1.55,r*.25,r*.55);ctx.fillRect(r*.25,-r*.8,r*.65,r*.25);ctx.fillRect(r*.65,-r*1.1,r*.25,r*.55)}
+ else{ctx.fillStyle=o.type==='boulder'?'#59615f':'#77796d';ctx.beginPath();ctx.moveTo(-r,-r*.1);ctx.lineTo(-r*.7,-r*1.1);ctx.lineTo(-r*.1,-r*1.4);ctx.lineTo(r*.75,-r);ctx.lineTo(r,-r*.15);ctx.lineTo(r*.5,r*.05);ctx.closePath();ctx.fill();ctx.fillStyle='#a7aaa0';ctx.globalAlpha=.55;ctx.beginPath();ctx.ellipse(-r*.2,-r*.85,r*.25,r*.13,-.4,0,Math.PI*2);ctx.fill()}
+ ctx.restore();}
+function drawTrees(){const z=zoneAt(distance);for(let i=0;i<14;i++){const d=((i*23+distance*.9)%205)+5;const p=perspective(d);for(const side of [-1,1]){const x=p.center+side*p.half*1.36,y=p.y,s=p.scale;const h=H*.15*s+2;if(y>H*.8)continue;ctx.fillStyle='#55432e';ctx.fillRect(x-3*s,y-h*.38,6*s,h*.4);ctx.fillStyle=z.tree;ctx.beginPath();ctx.moveTo(x,y-h);ctx.lineTo(x-h*.42,y-h*.18);ctx.lineTo(x+h*.42,y-h*.18);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(x,y-h*.74);ctx.lineTo(x-h*.53,y-h*.05);ctx.lineTo(x+h*.53,y-h*.05);ctx.closePath();ctx.fill();}}}
+function drawCockpit(){
+ const bottom=H*.84;ctx.fillStyle='#202a27';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(W*.075,0);ctx.lineTo(W*.105,bottom);ctx.lineTo(0,bottom);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(W,0);ctx.lineTo(W*.925,0);ctx.lineTo(W*.895,bottom);ctx.lineTo(W,bottom);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#151c1b';ctx.fillRect(0,0,W,H*.055);ctx.fillRect(0,bottom,W,H-bottom);
+ const hood=ctx.createLinearGradient(0,H*.77,0,H);hood.addColorStop(0,'#4f5b53');hood.addColorStop(1,'#202b27');ctx.fillStyle=hood;ctx.beginPath();ctx.moveTo(W*.22,H*.87);ctx.lineTo(W*.32,H*.79);ctx.lineTo(W*.68,H*.79);ctx.lineTo(W*.78,H*.87);ctx.lineTo(W*.94,H);ctx.lineTo(W*.06,H);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='#9baf97';ctx.globalAlpha=.45;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W*.34,H*.81);ctx.lineTo(W*.2,H);ctx.moveTo(W*.66,H*.81);ctx.lineTo(W*.8,H);ctx.stroke();ctx.globalAlpha=1;
+ const dash=ctx.createLinearGradient(0,H*.88,0,H);dash.addColorStop(0,'#39443e');dash.addColorStop(1,'#111816');ctx.fillStyle=dash;ctx.beginPath();ctx.moveTo(0,H*.88);ctx.quadraticCurveTo(W*.5,H*.82,W,H*.88);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+ const cx=W*.5,cy=H*.96,rad=Math.min(W*.105,68);ctx.strokeStyle='#151a18';ctx.lineWidth=Math.max(9,rad*.16);ctx.beginPath();ctx.arc(cx,cy,rad,Math.PI*1.08,Math.PI*1.92);ctx.stroke();ctx.lineWidth=Math.max(5,rad*.09);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx-steerVisual*rad*.5,cy-rad*.82);ctx.moveTo(cx,cy);ctx.lineTo(cx+steerVisual*rad*.5,cy-rad*.82);ctx.stroke();ctx.fillStyle='#202a25';ctx.beginPath();ctx.arc(cx,cy,rad*.22,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#e0b94e';ctx.beginPath();ctx.arc(W*.13,H*.925,4,0,Math.PI*2);ctx.arc(W*.18,H*.925,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#8bcf75';ctx.beginPath();ctx.arc(W*.85,H*.925,4,0,Math.PI*2);ctx.fill();
+}
+function drawSpeedEffects(){if(speed>105){ctx.strokeStyle='#ffffff32';ctx.lineWidth=2;for(let i=0;i<9;i++){const x=(i*119+elapsed*90)%W,y=H*.32+(i*67)%(H*.45);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(x-W/2)*.035,y+22);ctx.stroke()}}}
+function render(){ctx.save();if(shake>0)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);sky();drawRoad();drawTrees();for(const o of objects)if(!o.hit)drawObstacle(o);drawSpeedEffects();drawCockpit();ctx.restore()}
+function loop(t,token){if(token!==loopToken||!running||paused)return;const dt=Math.min((t-last)/1000,.04);last=t;update(dt);render();if(running&&!paused)requestAnimationFrame(n=>loop(n,token))}
+updateHud();render();
+})();
+</script>
+</body>
+</html>

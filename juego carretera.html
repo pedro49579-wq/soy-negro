@@ -1,0 +1,465 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>OFFROAD: Expedición Extrema</title>
+<style>
+:root{--lime:#c9f47a;--panel:rgba(12,22,18,.88);--line:rgba(255,255,255,.17)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#19251d;color:#f6f5e9;font-family:Arial,Helvetica,sans-serif;touch-action:none}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px;box-shadow:0 7px 24px #0003;backdrop-filter:blur(8px)}
+#brand{position:absolute;top:13px;left:14px;font-weight:1000;letter-spacing:.1em;font-size:13px}
+#brand span{color:var(--lime)}
+#stats{position:absolute;top:13px;right:14px;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.stat{min-width:75px;text-align:center}
+.small{font-size:9px;color:#b8c3b9;letter-spacing:.12em;font-weight:bold}
+.value{font-weight:900;font-size:14px;margin-top:3px}
+#stage{position:absolute;top:67px;left:50%;transform:translateX(-50%);text-align:center;min-width:190px}
+.bar{height:5px;background:#ffffff25;border-radius:8px;overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;width:100%;background:var(--lime);border-radius:8px;transition:width .15s}
+#mission{position:absolute;bottom:15px;left:14px;max-width:230px;font-size:11px;line-height:1.45;color:#e4eadf}
+#message{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:linear-gradient(120deg,#09120feF,#101a12d9)}
+#card{width:min(520px,calc(100% - 28px));padding:28px;border:1px solid var(--line);border-radius:20px;background:rgba(16,29,22,.96);box-shadow:0 24px 90px #0008;text-align:center}
+.kicker{font-size:10px;letter-spacing:.25em;font-weight:900;color:var(--lime)}
+h1{font-size:clamp(35px,8vw,62px);line-height:.9;letter-spacing:-.06em;margin:12px 0}
+h1 span{color:var(--lime)}
+#desc{font-size:13px;line-height:1.55;color:#c8d1c7;margin:14px auto 18px;max-width:420px}
+.tags{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:15px 0 20px}
+.tag{font-size:10px;padding:7px 9px;border:1px solid #ffffff25;border-radius:7px;color:#dce5d9}
+.modes{display:flex;gap:8px;margin:0 0 15px}
+.mode{flex:1;border:1px solid #ffffff30;background:#26382b;color:#eaf0e6;padding:10px 5px;border-radius:9px;font-weight:bold;cursor:pointer}
+.mode.active{background:var(--lime);color:#182219;border-color:var(--lime)}
+button{font:inherit;cursor:pointer}
+#start{width:100%;border:0;border-radius:10px;padding:14px;background:var(--lime);color:#182219;font-weight:1000;letter-spacing:.13em}
+#controls{font-size:10px;line-height:1.7;color:#9eaca0;margin-top:14px}
+#toast{position:fixed;z-index:3;top:23%;left:50%;transform:translate(-50%,-10px);opacity:0;padding:11px 16px;border-radius:10px;background:#102018eF;border:1px solid #c9f47a88;color:var(--lime);font-size:12px;font-weight:900;letter-spacing:.1em;transition:.2s;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#mobile{display:none;position:fixed;z-index:4;left:0;right:0;bottom:14px;justify-content:space-between;padding:0 15px;pointer-events:none}
+.touchgroup{display:flex;gap:8px}
+.touch{pointer-events:auto;touch-action:none;user-select:none;width:58px;height:58px;border-radius:14px;background:#112019d9;color:white;border:1px solid #ffffff55;font-weight:900;font-size:19px}
+.touch.gas{width:68px;background:#c9f47a;color:#172219;font-size:12px}
+#pause{display:none;position:fixed;z-index:4;inset:0;place-items:center;background:#07100b88;font-size:25px;font-weight:1000;letter-spacing:.2em;text-shadow:0 3px 10px #000}
+#pause.show{display:grid}
+@media(max-width:700px){
+#stats{top:55px;left:10px;right:10px;justify-content:center}
+.stat{min-width:62px;padding:7px 8px}
+.value{font-size:12px}
+#brand{top:12px;left:12px}
+#stage{top:12px;left:auto;right:12px;transform:none;min-width:115px;font-size:10px}
+#mission{bottom:90px;left:10px;font-size:10px}
+#mobile{display:flex}
+#card{padding:23px 18px}
+.modes{gap:5px}
+.mode{font-size:11px}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div id="brand" class="panel">4×4 <span>EXPEDICIÓN</span></div>
+ <div id="stage" class="panel">
+  <div class="small">ZONA ACTUAL</div>
+  <div class="value" id="zone">BOSQUE</div>
+  <div class="bar"><i id="stagebar"></i></div>
+ </div>
+ <div id="stats">
+  <div class="panel stat"><div class="small">DISTANCIA</div><div class="value"><span id="distance">0</span> m</div></div>
+  <div class="panel stat"><div class="small">COMBUSTIBLE</div><div class="value" id="fuelText">100%</div><div class="bar"><i id="fuelbar"></i></div></div>
+  <div class="panel stat"><div class="small">NITRO</div><div class="value" id="nitroText">0%</div><div class="bar"><i id="nitrobar"></i></div></div>
+  <div class="panel stat"><div class="small">DAÑOS</div><div class="value" id="damageText">0%</div><div class="bar"><i id="damagebar"></i></div></div>
+  <div class="panel stat"><div class="small">MONEDAS</div><div class="value" id="coins">0</div></div>
+ </div>
+ <div id="mission" class="panel">OBJETIVO: completá 3.600 m · BONUS: monedas</div>
+</div>
+<div id="toast"></div>
+<div id="pause">PAUSA</div>
+<div id="mobile">
+ <div class="touchgroup">
+  <button class="touch" data-key="left">◀</button>
+  <button class="touch" data-key="right">▶</button>
+ </div>
+ <div class="touchgroup">
+  <button class="touch" data-key="brake">▼</button>
+  <button class="touch gas" data-key="gas">ACELERAR</button>
+ </div>
+</div>
+<div id="message">
+ <div id="card">
+  <div class="kicker">CAMPAÑA 4×4 · SUPERVIVENCIA</div>
+  <h1>OFFROAD<br><span>EXTREMA</span></h1>
+  <p id="desc">Una expedición por cuatro regiones. Esquivá rocas, troncos y charcos, atravesá barro, juntá monedas y cuidá el combustible y la camioneta. Cada zona es más difícil que la anterior.</p>
+  <div class="tags">
+   <span class="tag">🌲 BOSQUE</span>
+   <span class="tag">🏜️ DESIERTO</span>
+   <span class="tag">🪨 MONTAÑA</span>
+   <span class="tag">🌧️ PANTANO</span>
+   <span class="tag">⚡ NITRO Y SALTOS</span>
+  </div>
+  <div class="small" style="margin-bottom:8px">ELEGÍ LA DIFICULTAD</div>
+  <div class="modes">
+   <button class="mode active" data-mode="easy">FÁCIL</button>
+   <button class="mode" data-mode="normal">NORMAL</button>
+   <button class="mode" data-mode="hard">EXTREMA</button>
+  </div>
+  <button id="start">ARRANCAR EXPEDICIÓN →</button>
+  <div id="controls">W / ↑ acelerar · S / ↓ frenar · A / ← y D / → girar<br>ESPACIO freno de mano · SHIFT nitro · P pausa · R reiniciar</div>
+ </div>
+</div>
+<script>
+(()=>{
+'use strict';
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+let W=innerWidth,H=innerHeight,DPR=1;
+function resize(){
+ DPR=Math.min(devicePixelRatio||1,1.7);
+ W=innerWidth;H=innerHeight;
+ canvas.width=Math.floor(W*DPR);
+ canvas.height=Math.floor(H*DPR);
+ canvas.style.width=W+'px';canvas.style.height=H+'px';
+ ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize',resize);resize();
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const keys={},touch={};
+let mode='easy',running=false,paused=false,last=0,elapsed=0,roadScroll=0,distance=0,coins=0,fuel=100,nitro=0,damage=0,speed=0,spawn=0,itemSpawn=0,toastTimer=0,shake=0,loopToken=0;
+let best=Number(localStorage.getItem('offroadExtremaBest')||0);
+const car={x:0,tilt:0};
+let objects=[],particles=[];
+const settings={
+ easy:{traffic:.78,damage:7,fuel:.48,speed:300},
+ normal:{traffic:1,damage:11,fuel:.68,speed:335},
+ hard:{traffic:1.28,damage:16,fuel:.85,speed:365}
+};
+const zones=[
+ {name:'BOSQUE',start:0,end:900,grass:'#557746',road:'#9a805a',edge:'#d3b985',tree:'#315b36',sky:'#a6c0ad',icon:'🌲'},
+ {name:'DESIERTO',start:900,end:1800,grass:'#b99a59',road:'#b18b5a',edge:'#e1c48a',tree:'#7d693e',sky:'#d4bd8b',icon:'🏜️'},
+ {name:'MONTAÑA',start:1800,end:2700,grass:'#707b70',road:'#77766c',edge:'#c9c5b2',tree:'#46564c',sky:'#a5b5bc',icon:'🪨'},
+ {name:'PANTANO',start:2700,end:3600,grass:'#536b51',road:'#6a6549',edge:'#a8a17b',tree:'#344d3c',sky:'#879e96',icon:'🌧️'}
+];
+const zoneAt=d=>zones[Math.min(3,Math.floor(d/900))];
+function roadCenter(y){
+ return W/2+Math.sin((y-roadScroll)*.0031)*W*.115+Math.sin((y-roadScroll)*.008)*W*.027;
+}
+function showToast(text){
+ $('toast').textContent=text;
+ $('toast').classList.add('show');
+ toastTimer=1.65;
+}
+function reset(){
+ distance=0;coins=0;fuel=100;nitro=0;damage=0;speed=0;
+ roadScroll=0;elapsed=0;spawn=.45;itemSpawn=1.2;
+ objects=[];particles=[];car.x=roadCenter(carY());car.tilt=0;shake=0;
+ updateHud();
+}
+function start(){
+ reset();running=true;paused=false;loopToken++;
+ $('message').style.display='none';$('pause').classList.remove('show');
+ last=performance.now();showToast('¡EXPEDICIÓN INICIADA!');
+ const token=loopToken;
+ requestAnimationFrame(t=>loop(t,token));
+}
+$('start').addEventListener('click',start);
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
+ mode=b.dataset.mode;
+ document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));
+}));
+addEventListener('keydown',e=>{
+ const k=e.key.toLowerCase();
+ if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
+ keys[k===' '?'space':k]=true;
+ if(e.repeat)return;
+ if(k==='p'&&running){
+  paused=!paused;
+  $('pause').classList.toggle('show',paused);
+  last=performance.now();
+  if(!paused){const token=loopToken;requestAnimationFrame(t=>loop(t,token));}
+ }
+ if(k==='r'&&running)start();
+});
+addEventListener('keyup',e=>{
+ const k=e.key.toLowerCase();
+ keys[k===' '?'space':k]=false;
+});
+addEventListener('blur',()=>{
+ for(const k in keys)keys[k]=false;
+ for(const k in touch)touch[k]=false;
+});
+document.querySelectorAll('[data-key]').forEach(b=>{
+ const k=b.dataset.key;
+ const on=e=>{e.preventDefault();touch[k]=true;b.style.filter='brightness(1.35)';};
+ const off=e=>{e.preventDefault();touch[k]=false;b.style.filter='';};
+ b.addEventListener('pointerdown',on);
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,off));
+});
+function input(name,...aliases){
+ return !!(keys[name]||aliases.some(k=>keys[k])||touch[name]);
+}
+function makeObject(type,x,y,extra={}){
+ objects.push({type,x,y,r:extra.r||15,spin:Math.random()*6,hit:false,...extra});
+}
+function spawnObstacle(){
+ const zone=zoneAt(distance),center=roadCenter(-40),lane=(Math.random()*2-1)*W*.145;
+ let type;
+ const roll=Math.random();
+ if(zone.name==='BOSQUE')type=roll<.50?'rock':roll<.88?'log':'ramp';
+ else if(zone.name==='DESIERTO')type=roll<.42?'rock':roll<.75?'cactus':roll<.9?'sand':'ramp';
+ else if(zone.name==='MONTAÑA')type=roll<.52?'boulder':roll<.78?'rock':'ramp';
+ else type=roll<.45?'mud':roll<.83?'water':'ramp';
+ makeObject(type,center+lane,-45,{r:type==='boulder'?25:type==='log'?20:16});
+}
+function spawnItem(){
+ const center=roadCenter(-35),lane=(Math.random()*2-1)*W*.15,roll=Math.random();
+ let type=roll<.48?'coin':roll<.67?'fuel':roll<.84?'repair':'nitro';
+ makeObject(type,center+lane,-45,{r:type==='coin'?12:15});
+}
+function hit(o){
+ if(o.hit)return;
+ o.hit=true;
+ const cfg=settings[mode];
+ if(o.type==='coin'){coins++;showToast('+1 MONEDA');return;}
+ if(o.type==='fuel'){fuel=Math.min(100,fuel+27);showToast('BIDÓN +27% COMBUSTIBLE');return;}
+ if(o.type==='repair'){damage=Math.max(0,damage-28);showToast('KIT DE REPARACIÓN');return;}
+ if(o.type==='nitro'){nitro=Math.min(100,nitro+38);showToast('NITRO +38%');return;}
+ if(o.type==='ramp'){speed=Math.min(settings[mode].speed,speed+105);showToast('¡SALTO!');shake=2;return;}
+ if(o.type==='sand'){speed*=.82;showToast('ARENA SUELTA');return;}
+ if(o.type==='mud'){speed*=.72;damage=Math.min(100,damage+cfg.damage*.25);showToast('¡BARRO PROFUNDO!');shake=4;return;}
+ if(o.type==='water'){speed*=.78;showToast('¡CRUCE DE AGUA!');shake=3;return;}
+ damage=Math.min(100,damage+cfg.damage*(o.type==='boulder'?1.35:1));
+ speed*=.48;shake=10;
+ showToast(o.type==='cactus'?'¡ESPINAS!':'¡GOLPE!');
+ for(let i=0;i<9;i++)particles.push({
+  x:car.x,y:carY(),vx:(Math.random()-.5)*130,
+  vy:(Math.random()-.5)*130,life:.4+Math.random()*.4,age:0
+ });
+}
+function carY(){return H*.77;}
+function update(dt){
+ const cfg=settings[mode];
+ const gas=input('gas','w','arrowup');
+ const brake=input('brake','s','arrowdown');
+ const left=input('left','a','arrowleft');
+ const right=input('right','d','arrowright');
+ const hand=input('space');
+ const boost=!!(keys.shift||keys.shiftleft||keys.shiftright);
+ const surfaceSlow=objects.some(o=>!o.hit&&o.type==='mud'&&Math.abs(o.y-carY())<80&&Math.abs(o.x-car.x)<45);
+ if(gas&&fuel>0&&damage<100)speed+=cfg.speed*dt*(surfaceSlow?.64:1);
+ if(boost&&nitro>0&&fuel>0){
+  speed+=cfg.speed*1.05*dt;
+  nitro=Math.max(0,nitro-34*dt);
+ }
+ if(brake)speed-=450*dt;else speed-=42*dt;
+ speed=clamp(speed,0,cfg.speed*(1-damage/145));
+ if(hand)speed*=Math.pow(.90,dt*10);
+ const steer=(right?1:0)-(left?1:0);
+ car.x+=steer*(170+speed*.43)*dt*(surfaceSlow?.67:1);
+ car.x=clamp(car.x,14,W-14);
+ car.tilt=lerp(car.tilt,steer*.13,Math.min(1,dt*8));
+ const center=roadCenter(carY());
+ const onRoad=Math.abs(car.x-center)<W*.192;
+ if(!onRoad){
+  speed*=Math.pow(.34,dt);
+  damage=Math.min(100,damage+dt*(mode==='hard'?2.2:.8));
+ }
+ const scroll=speed*dt*.82;
+ roadScroll+=scroll;distance+=scroll*.16;elapsed+=dt;
+ if(speed>5)fuel=Math.max(0,fuel-dt*cfg.fuel*(.35+speed/cfg.speed*.8));
+ if(fuel<=0)speed=Math.max(0,speed-160*dt);
+ spawn-=dt*(.72+distance/7000)*cfg.traffic;
+ if(spawn<=0){
+  spawnObstacle();
+  spawn=Math.max(.38,1.13-distance/5200)*cfg.traffic;
+ }
+ itemSpawn-=dt;
+ if(itemSpawn<=0){spawnItem();itemSpawn=2.35+Math.random()*1.6;}
+ for(const o of objects){
+  o.y+=scroll;o.spin+=dt*3;
+  if(!o.hit&&Math.abs(o.y-carY())<26&&Math.abs(o.x-car.x)<o.r+17)hit(o);
+ }
+ objects=objects.filter(o=>o.y<H+65&&!o.hit);
+ for(let i=particles.length-1;i>=0;i--){
+  let p=particles[i];p.age+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+  if(p.age>p.life)particles.splice(i,1);
+ }
+ if(shake>0)shake=Math.max(0,shake-dt*24);
+ if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)$('toast').classList.remove('show');}
+ if(distance>=3600){finish(true);return;}
+ if(damage>=100){finish(false,'La camioneta quedó destruida.');return;}
+ if(fuel<=0&&speed<8){finish(false,'Te quedaste sin combustible.');return;}
+ updateHud();
+}
+function updateHud(){
+ const zone=zoneAt(distance);
+ $('zone').textContent=zone.name;
+ $('stagebar').style.width=((distance-zone.start)/(zone.end-zone.start)*100)+'%';
+ $('distance').textContent=Math.floor(distance);
+ $('fuelText').textContent=Math.ceil(fuel)+'%';
+ $('fuelbar').style.width=fuel+'%';
+ $('fuelbar').style.background=fuel<25?'#ff755f':'var(--lime)';
+ $('damageText').textContent=Math.floor(damage)+'%';
+ $('damagebar').style.width=damage+'%';
+ $('damagebar').style.background=damage>65?'#ff755f':'#e7c66b';
+ $('nitroText').textContent=Math.floor(nitro)+'%';
+ $('nitrobar').style.width=nitro+'%';
+ $('coins').textContent=coins;
+ $('mission').textContent=`OBJETIVO: completá 3.600 m · BONUS: monedas ${coins}`+
+  (fuel<20?' · ¡BUSCÁ COMBUSTIBLE!':'')+
+  (damage>65?' · ¡CAMIONETA DAÑADA!':'');
+}
+function finish(win,reason=''){
+ running=false;loopToken++;
+ if(distance>best){
+  best=Math.floor(distance);
+  localStorage.setItem('offroadExtremaBest',best);
+ }
+ $('message').style.display='grid';
+ $('card').innerHTML=`
+  <div class="kicker">RESULTADO DE LA CAMPAÑA</div>
+  <h1>${win?'¡LO':'CASI'}<br><span>${win?'LOGRASTE':'LO LOGRÁS!'}</span></h1>
+  <p id="desc">${win?'Atravesaste las cuatro regiones y completaste la ruta.':reason}</p>
+  <div class="tags">
+   <span class="tag">DISTANCIA: ${Math.floor(distance)} m</span>
+   <span class="tag">MONEDAS: ${coins}</span>
+   <span class="tag">RÉCORD: ${best} m</span>
+  </div>
+  <button id="again" style="width:100%;border:0;border-radius:10px;padding:14px;background:var(--lime);color:#182219;font-weight:1000">VOLVER A JUGAR ↻</button>
+  <div id="controls">Probá otra dificultad para superar tu récord.</div>`;
+ $('again').onclick=()=>start();
+}
+function drawBackground(){
+ const z=zoneAt(distance);
+ const g=ctx.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,z.sky);g.addColorStop(1,z.grass);
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<55;i++){
+  let x=(i*173+Math.sin(i*6.2)*30)%W;
+  let y=((i*97+roadScroll*.48)%(H+40))-20;
+  let r=5+(i%4)*2;
+  ctx.fillStyle=z.tree;ctx.globalAlpha=.35;
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+ }
+ ctx.beginPath();
+ for(let y=-8;y<=H+8;y+=7){
+  let c=roadCenter(y);
+  if(y===-8)ctx.moveTo(c-W*.22,y);else ctx.lineTo(c-W*.22,y);
+ }
+ for(let y=H+8;y>=-8;y-=7)ctx.lineTo(roadCenter(y)+W*.22,y);
+ ctx.closePath();ctx.fillStyle=z.road;ctx.fill();
+ ctx.strokeStyle=z.edge;ctx.lineWidth=5;
+ for(const side of [-1,1]){
+  ctx.beginPath();
+  for(let y=-8;y<=H+8;y+=8){
+   let x=roadCenter(y)+side*W*.22;
+   if(y===-8)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+ }
+ ctx.strokeStyle='#e8d7ac99';ctx.lineWidth=2.5;
+ ctx.setLineDash([24,22]);ctx.lineDashOffset=-roadScroll*.9;ctx.beginPath();
+ for(let y=-8;y<=H+8;y+=8){
+  let x=roadCenter(y);
+  if(y===-8)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+ }
+ ctx.stroke();ctx.setLineDash([]);
+ if(z.name==='PANTANO'||z.name==='BOSQUE'){
+  for(let i=0;i<8;i++){
+   let yy=((i*137+roadScroll*.65)%(H+30))-15;
+   let xx=roadCenter(yy)+(i%2?1:-1)*W*.13;
+   ctx.fillStyle='#547f79aa';ctx.beginPath();
+   ctx.ellipse(xx,yy,18,7,.15,0,Math.PI*2);ctx.fill();
+  }
+ }
+}
+function drawObject(o){
+ ctx.save();ctx.translate(o.x,o.y);
+ if(o.type==='coin'){
+  ctx.rotate(o.spin);ctx.fillStyle='#ffd65b';ctx.strokeStyle='#fff0a8';ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#8b5817';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('$',0,4);
+ }else if(o.type==='fuel'||o.type==='repair'||o.type==='nitro'){
+  ctx.fillStyle=o.type==='fuel'?'#e04b3f':o.type==='nitro'?'#398ed6':'#e7e9df';
+  ctx.fillRect(-9,-12,18,24);
+  ctx.fillStyle=o.type==='fuel'?'#fff':o.type==='nitro'?'#d9f2ff':'#32874f';
+  ctx.fillRect(-5,-7,10,10);ctx.fillStyle='#20291f';ctx.fillRect(-4,-16,8,5);
+  ctx.fillStyle='#fff';ctx.font='bold 10px Arial';ctx.textAlign='center';
+  ctx.fillText(o.type==='fuel'?'F':o.type==='nitro'?'N':'+',0,1);
+ }else if(o.type==='ramp'){
+  ctx.fillStyle='#a77b4d';ctx.beginPath();ctx.moveTo(-23,10);ctx.lineTo(18,-12);ctx.lineTo(23,10);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#e5c28c';ctx.lineWidth=3;ctx.stroke();
+ }else if(o.type==='water'){
+  ctx.fillStyle='#418ca2';ctx.beginPath();ctx.ellipse(0,0,25,10,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#a6e3e8';ctx.stroke();
+ }else if(o.type==='mud'){
+  ctx.fillStyle='#59452f';ctx.beginPath();ctx.ellipse(0,0,27,14,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#826644';ctx.beginPath();ctx.ellipse(-5,-2,13,5,0,0,Math.PI*2);ctx.fill();
+ }else if(o.type==='log'){
+  ctx.rotate(.25);ctx.fillStyle='#765036';ctx.fillRect(-22,-7,44,14);
+  ctx.fillStyle='#c08b5c';ctx.beginPath();ctx.arc(-22,0,7,0,Math.PI*2);ctx.fill();
+ }else if(o.type==='cactus'){
+  ctx.fillStyle='#3e7546';ctx.fillRect(-6,-17,12,34);
+  ctx.fillRect(-15,-9,9,6);ctx.fillRect(-15,-15,6,12);
+  ctx.fillRect(6,-4,9,6);ctx.fillRect(9,-10,6,12);
+ }else{
+  ctx.fillStyle=o.type==='boulder'?'#555c5c':'#67675c';
+  ctx.beginPath();ctx.moveTo(-o.r,-4);ctx.lineTo(-o.r*.55,-o.r);
+  ctx.lineTo(o.r*.3,-o.r*.9);ctx.lineTo(o.r,o.r*.1);
+  ctx.lineTo(o.r*.55,o.r*.8);ctx.lineTo(-o.r*.6,o.r*.75);
+  ctx.closePath();ctx.fill();ctx.fillStyle='#a7a99b';ctx.globalAlpha=.55;
+  ctx.beginPath();ctx.ellipse(-o.r*.2,-o.r*.38,o.r*.25,o.r*.14,-.4,0,Math.PI*2);ctx.fill();
+ }
+ ctx.restore();
+}
+function carY(){return H*.77;}
+function drawCar(){
+ ctx.save();ctx.translate(car.x,carY());ctx.rotate(car.tilt);
+ ctx.shadowColor='#0009';ctx.shadowBlur=10;ctx.shadowOffsetY=6;
+ ctx.fillStyle='#171b18';
+ ctx.fillRect(-22,-22,9,17);ctx.fillRect(13,-22,9,17);
+ ctx.fillRect(-22,10,9,17);ctx.fillRect(13,10,9,17);
+ ctx.fillStyle='#d17b36';ctx.fillRect(-17,-29,34,57);
+ ctx.fillStyle='#273c3b';ctx.fillRect(-13,-18,26,19);
+ ctx.fillStyle='#b5c5b7';ctx.fillRect(-11,-16,22,3);
+ ctx.fillStyle='#e9e4c2';ctx.fillRect(-14,-26,8,5);ctx.fillRect(6,-26,8,5);
+ ctx.fillStyle='#bd4436';ctx.fillRect(-13,22,7,4);ctx.fillRect(6,22,7,4);
+ ctx.fillStyle='#3d4c40';ctx.fillRect(-15,2,30,12);
+ ctx.restore();
+}
+function drawParticles(){
+ for(const p of particles){
+  ctx.globalAlpha=1-p.age/p.life;ctx.fillStyle='#c5b89a';
+  ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+ }
+ ctx.globalAlpha=1;
+}
+function render(){
+ ctx.save();
+ if(shake>0)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ drawBackground();
+ for(const o of objects)if(!o.hit)drawObject(o);
+ drawParticles();drawCar();ctx.restore();
+ if(speed>210){
+  ctx.strokeStyle='#ffffff30';ctx.lineWidth=2;
+  for(let i=0;i<9;i++){
+   let x=(i*119+elapsed*120)%W,y=(i*83+elapsed*210)%H;
+   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-3,y+18);ctx.stroke();
+  }
+ }
+}
+function loop(t,token){
+ if(token!==loopToken||!running||paused)return;
+ const dt=Math.min((t-last)/1000,.04);last=t;
+ update(dt);render();
+ if(running&&!paused)requestAnimationFrame(next=>loop(next,token));
+}
+updateHud();render();
+})();
+</script>
+</body>
+</html>
